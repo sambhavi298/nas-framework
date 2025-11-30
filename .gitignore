@@ -1,0 +1,26 @@
+# Ignore datasets
+data/
+*.tar.gz
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment files
+.conda/
+env/
+*.env
+
+# VSCode settings
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# PyTorch compiled files
+*.pt
+*.pth
+
+# Git filter repo backup (if exists)
+.git-filter-repo/
