@@ -218,3 +218,135 @@ class DartsTrainer:
         # Optionally gradient clip for alphas (rarely needed)
         self.optimizer_alpha.step()
         return loss_alpha.item()
+
+    # -------------------------
+    # Main search loop
+    # -------------------------
+    def search(self, start_epoch: int = 0, resume_from: Optional[str] = None):
+        """
+        Run the DARTS-style search.
+        """
+        if self.train_loader is None or self.valid_loader is None:
+            raise RuntimeError("Call setup_data() before search()")
+
+        if resume_from is not None:
+            start_epoch = self._load_checkpoint(resume_from, resume_optimizers=True) + 1
+
+        best_acc = 0.0
+        total_iters = 0
+        for epoch in range(start_epoch, self.epochs):
+            epoch_start = time.time()
+            train_losses = []
+            val_losses_alpha = []
+            acc_meter = []
+
+            # iterate over training loader and alternate with validation mini-batches
+            train_iter = iter(self.train_loader)
+            valid_iter = iter(self.valid_loader)
+
+            # For each training mini-batch: update W; then update alpha on a validation mini-batch
+            for step in range(len(self.train_loader)):
+                try:
+                    input_train, target_train = next(train_iter)
+                except StopIteration:
+                    break
+                try:
+                    input_val, target_val = next(valid_iter)
+                except StopIteration:
+                    # restart validation iterator if exhausted
+                    valid_iter = iter(self.valid_loader)
+                    input_val, target_val = next(valid_iter)
+
+                input_train = input_train.to(self.device, non_blocking=True)
+                target_train = target_train.to(self.device, non_blocking=True)
+                input_val = input_val.to(self.device, non_blocking=True)
+                target_val = target_val.to(self.device, non_blocking=True)
+
+                # 1) Update weights W on training mini-batch
+                loss_w = self._train_step_weights(input_train, target_train)
+                train_losses.append(loss_w)
+
+                # 2) Update alphas on a validation mini-batch
+                # Note: this is first-order update. For unrolled=True, a second-order
+                # implementation would be required (costly).
+                if self.unrolled:
+                    logger.warning("unrolled=True is enabled but currently running first-order update. Implement true unrolled update for second-order gradients.")
+                loss_alpha = self._train_step_alpha(input_val, target_val)
+                val_losses_alpha.append(loss_alpha)
+
+                total_iters += 1
+
+            # scheduler step for weights
+            self.scheduler.step()
+
+            # epoch logging
+            epoch_time = time.time() - epoch_start
+            logger.info(f"Epoch [{epoch+1}/{self.epochs}] time: {epoch_time:.1f}s, train_loss: {sum(train_losses)/len(train_losses):.4f}, val_alpha_loss: {sum(val_losses_alpha)/len(val_losses_alpha):.4f}")
+
+            # Evaluate training accuracy quickly on subset (optional)
+            acc = self._quick_eval()
+            logger.info(f"Quick eval - train/val acc (approx): {acc:.2f}%")
+
+            # Save checkpoint and genotype periodically
+            if (epoch + 1) % self.save_every == 0 or (epoch + 1) == self.epochs:
+                ckpt_path = self._save_checkpoint(epoch + 1, tag="darts_ckpt.pth")
+                genotype = self.model.genotype()
+                genotype_path = os.path.join(self.work_dir, f"genotype_epoch_{epoch+1}.txt")
+                with open(genotype_path, "w") as f:
+                    f.write("\n".join(genotype))
+                logger.info(f"Saved genotype to {genotype_path}")
+
+        logger.info("Search complete.")
+        # final genotype
+        final_genotype = self.model.genotype()
+        logger.info(f"Final genotype: {final_genotype}")
+        self._save_checkpoint(self.epochs, tag="darts_final.pth")
+        return final_genotype
+
+    # -------------------------
+    # Quick evaluation helper
+    # -------------------------
+    def _quick_eval(self, num_batches: int = 10):
+        """
+        Quick approximate evaluation to monitor progress.
+        Runs on a small subset of training data (no full validation to keep search fast).
+        """
+        self.model.eval()
+        total_top1 = 0.0
+        total = 0
+        it = 0
+        with torch.no_grad():
+            for input, target in self.train_loader:
+                input = input.to(self.device)
+                target = target.to(self.device)
+                logits = self.model(input)
+                top1 = self.accuracy(logits, target, topk=(1,))[0]
+                total_top1 += top1
+                total += 1
+                it += 1
+                if it >= num_batches:
+                    break
+        return total_top1 / total if total > 0 else 0.0
+
+    # -------------------------
+    # Public utilities
+    # -------------------------
+    def save_genotype(self, filename: Optional[str] = None):
+        g = self.model.genotype()
+        filename = filename or os.path.join(self.work_dir, "genotype.txt")
+        with open(filename, "w") as f:
+            f.write("\n".join(g))
+        logger.info(f"Saved genotype to {filename}")
+
+    def resume(self, ckpt_path: str):
+        return self._load_checkpoint(ckpt_path, resume_optimizers=True)
+
+
+# -------------------------
+# Example usage (script)
+# -------------------------
+if __name__ == "__main__":
+    trainer = DartsTrainer(work_dir="./work", batch_size=64, epochs=30, use_amp=False, unrolled=False, save_every=5)
+    trainer.setup_data(data_root="./data", cifar_download=True)
+    genotype = trainer.search()
+    print("Discovered genotype:", genotype)
