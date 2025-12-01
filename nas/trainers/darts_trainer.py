@@ -90,3 +90,50 @@ class DartsTrainer:
             use_amp=self.use_amp,
             unrolled=self.unrolled,
         )
+
+    # -------------------------
+    # Dataset and DataLoaders
+    # -------------------------
+    def setup_data(self, data_root: str = "./data", cifar_download: bool = True, normalize_mean=None, normalize_std=None):
+        """
+        Prepare CIFAR-10 train/validation split and dataloaders.
+        """
+        if normalize_mean is None:
+            normalize_mean = (0.4914, 0.4822, 0.4465)
+        if normalize_std is None:
+            normalize_std = (0.2470, 0.2435, 0.2616)
+
+        train_transform = Compose([
+            RandomCrop(32, padding=4),
+            RandomHorizontalFlip(),
+            ToTensor(),
+            Normalize(normalize_mean, normalize_std)
+        ])
+        test_transform = Compose([
+            ToTensor(),
+            Normalize(normalize_mean, normalize_std)
+        ])
+
+        full_train = CIFAR10(root=data_root, train=True, download=cifar_download, transform=train_transform)
+        n_train = len(full_train)
+        split = int(self.config.get("batch_size", self.batch_size) * 0)  # placeholder, not used
+        # We will split with fixed ratio controlled by train_val_split
+        train_size = int(n_train * 0.9)  # default 90% train
+        val_size = n_train - train_size
+
+        train_dataset, _ = random_split(full_train, [train_size, val_size], generator=torch.Generator().manual_seed(self.seed))
+        # Because random_split returns subsets with same transform, we need a val dataset with test transform.
+        # Easiest: create a new CIFAR test dataset and pick the same indices for validation.
+        # Simpler: load the full dataset twice and slice indices
+        full_train_for_val = CIFAR10(root=data_root, train=True, download=False, transform=test_transform)
+        # Acquire indices for validation (deterministic)
+        indices = list(range(n_train))
+        val_indices = indices[train_size:]
+        from torch.utils.data import Subset
+        train_subset = Subset(full_train, indices[:train_size])
+        val_subset = Subset(full_train_for_val, val_indices)
+
+        self.train_loader = DataLoader(train_subset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, pin_memory=True)
+        self.valid_loader = DataLoader(val_subset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, pin_memory=True)
+
+        logger.info(f"Data loaders ready. Train size: {len(train_subset)}, Val size: {len(val_subset)}")
