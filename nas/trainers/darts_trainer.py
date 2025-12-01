@@ -137,3 +137,47 @@ class DartsTrainer:
         self.valid_loader = DataLoader(val_subset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, pin_memory=True)
 
         logger.info(f"Data loaders ready. Train size: {len(train_subset)}, Val size: {len(val_subset)}")
+
+    # -------------------------
+    # Training utilities
+    # -------------------------
+    def _save_checkpoint(self, epoch: int, tag: str = "ckpt.pth"):
+        state = {
+            "epoch": epoch,
+            "model_state": self.model.state_dict(),
+            "optimizer_w_state": self.optimizer_w.state_dict(),
+            "optimizer_alpha_state": self.optimizer_alpha.state_dict(),
+            "scheduler_state": self.scheduler.state_dict(),
+            "scaler_state": self.scaler.state_dict() if self.use_amp else None,
+            "config": self.config,
+        }
+        path = os.path.join(self.work_dir, f"{epoch:03d}-{tag}")
+        torch.save(state, path)
+        logger.info(f"Saved checkpoint: {path}")
+        return path
+
+    def _load_checkpoint(self, path: str, resume_optimizers: bool = True):
+        ckpt = torch.load(path, map_location=self.device)
+        self.model.load_state_dict(ckpt["model_state"])
+        if resume_optimizers:
+            self.optimizer_w.load_state_dict(ckpt["optimizer_w_state"])
+            self.optimizer_alpha.load_state_dict(ckpt["optimizer_alpha_state"])
+            self.scheduler.load_state_dict(ckpt["scheduler_state"])
+            if self.use_amp and ckpt.get("scaler_state") is not None:
+                self.scaler.load_state_dict(ckpt["scaler_state"])
+        logger.info(f"Loaded checkpoint from {path}")
+        return ckpt.get("epoch", 0)
+
+    @staticmethod
+    def accuracy(output, target, topk=(1,)):
+        with torch.no_grad():
+            maxk = max(topk)
+            batch_size = target.size(0)
+            _, pred = output.topk(maxk, 1, True, True)
+            pred = pred.t()
+            correct = pred.eq(target.view(1, -1).expand_as(pred))
+            res = []
+            for k in topk:
+                correct_k = correct[:k].reshape(-1).float().sum(0)
+                res.append((100.0 * correct_k / batch_size).item())
+            return res
