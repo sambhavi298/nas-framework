@@ -1,88 +1,122 @@
 # NAS Framework — Hardware-Aware Neural Architecture Search
 
-This repository contains the initial setup for a Neural Architecture Search (NAS) framework designed to discover efficient deep learning models optimized for **accuracy**, **latency**, and **memory** on target hardware (edge devices, CPUs, GPUs).
+This repository implements a clean, modular, research-grade Neural Architecture Search (NAS) framework designed for accuracy, latency, and hardware-aware optimization on edge devices and GPUs.
 
-The project currently includes:
+Current progress:
 
-- Working baseline training pipeline (MobileNetV2 + CIFAR-10)
-- Clean and scalable project structure
-- Fully stable conda environment
-- Repository prepared for NAS extensions (search space, supernet, hardware-aware profiling)
-
-This forms the foundation for building a full NAS system.
+- Complete environment + project scaffolding  
+- CIFAR-10 baseline (MobileNetV2)  
+- Fully functional **search space (OPS)**  
+- Final stable **SuperNet** (with correct shape-safe MixedOps)  
+- Clean GitHub structure + synced commits  
+- Ready for DARTS architecture search  
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 nas-framework/
 │
-├── configs/               # Configuration files (search, model, hardware)
-├── data/                  # Local datasets (ignored by Git)
-├── datasets/              # Custom dataset loaders
-├── hardware/
-│   ├── profilers/         # Latency & resource profilers
-│   └── cost_models/       # Learned latency cost models
-├── models/                # Supernet + architecture models (WIP)
+├── configs/                 # (future) YAML configs
+│
+├── data/                    # datasets (ignored by git)
+│
 ├── nas/
-│   ├── algorithms/        # NAS algorithms (DARTS / ENAS / RL)
-│   ├── evaluators/        # Accuracy + latency evaluation modules
-│   ├── search_space/      # Search operations / cells
-│   └── trainers/          # Supernet + architecture training loops
+│   ├── models/
+│   │   └── supernet.py      # final stable SuperNet implementation
+│   │
+│   ├── search_space/
+│   │   └── ops.py           # final stable OPS (search space)
+│   │
+│   ├── trainers/            # (future) DARTS trainer
+│   │
+│   └── __init__.py
+│
 ├── scripts/
-│   └── train_baseline.py  # MobileNetV2 baseline training script
-├── utils/                 # Helper utilities
+│   └── train_baseline.py    # CIFAR-10 baseline
+│
+├── utils/                   # helpers (future)
+│
 └── README.md
----
-Environment Setup
+```
 
-Create the environment:
-
-conda create -n nas python=3.10 -y
-conda activate nas
-
-
-Install required packages:
-
-pip install torch torchvision "numpy<2" pandas pyyaml tqdm
 ---
 
-Baseline Model (MobileNetV2 + CIFAR-10)
+##  Search Space (OPS)
 
-Run training:
+The search space defines all candidate operations the NAS algorithm can choose from.
 
+Includes:
+
+- 3×3 conv  
+- 5×5 conv  
+- depthwise conv  
+- skip connection (only when shape matches)  
+- avg pooling  
+- max pooling  
+- zero op  
+- all ops return **same output shape**  
+- pooling + zero ops include **channel projection**  
+- no dimension mismatch during MixedOp summation  
+
+This gives a clean, DARTS-compatible operation set.
+
+---
+
+## SuperNet
+
+The SuperNet implements a one-shot, over-parameterized model with:
+
+- stem → MixedLayers → global pooling → classifier  
+- mid-network downsampling  
+- MixedOp with correct output sizes  
+- learnable architecture weights (α)  
+- `genotype()` for extracting the final architecture  
+
+Verified with forward pass on CIFAR-sized inputs.
+
+---
+
+## Baseline (CIFAR-10)
+
+Run:
+
+```bash
 python scripts/train_baseline.py
+```
 
+Confirms:
 
-Expected output:
+- torchvision dataset loads correctly  
+- training loop works end-to-end  
+- environment stable  
 
-epoch: 0  val_acc: 0.37
-epoch: 1  val_acc: 0.48
-
-
-This confirms:
-
-CIFAR-10 loads correctly
-
-Torch + Torchvision working
-
-Training loop functioning
-
-Environment stable
 ---
-Next Steps (NAS Development)
 
-1️⃣ Define search space operations
-2️⃣ Implement the supernet (weight-sharing)
-3️⃣ Add differentiable architecture parameters (α)
-4️⃣ Build hardware latency profiler
-5️⃣ Implement multi-objective NAS (accuracy + latency)
+## Progress Achieved
+
+- Conda environment created + dependencies fixed  
+- PyTorch + Torchvision working  
+- NumPy 2.x issue resolved  
+- CIFAR-10 baseline implemented  
+- Added final OPS (shape-safe, channel-projected)  
+- Added final SuperNet (working MixedOps + residuals)  
+- Project structure standardized  
+- Clean GitHub history with .gitignore  
+- Verified SuperNet output & genotype extraction  
+
+Framework is now ready for implementing the **DARTS trainer**.
+
 ---
-Notes
 
-data/ is intentionally ignored to prevent large git commits
+## Next Step
 
-Future components will be added step-by-step
+Upcoming module:
 
-Baseline is only the starting point
+**DARTS Trainer (bi-level optimization for architecture search)**  
+→ alternates weight updates (W) and architecture updates (α)  
+→ extracts final architecture from optimized α  
+
+---
+
