@@ -1,0 +1,9 @@
+Input shape: torch.Size([1, 16, 32, 32])
+Testing ops with stride=2, C_in=16, C_out=32
+Op: conv_3x3, Output shape: torch.Size([1, 32, 16, 16])
+Op: conv_5x5, Output shape: torch.Size([1, 32, 16, 16])
+Op: dwconv_3x3, Output shape: torch.Size([1, 32, 16, 16])
+Op: skip, Output shape: torch.Size([1, 32, 16, 16])
+Op: avg_pool, Output shape: torch.Size([1, 32, 16, 16])
+Op: max_pool, Output shape: torch.Size([1, 32, 16, 16])
+Op: zero, Output shape: torch.Size([1, 32, 16, 16])
