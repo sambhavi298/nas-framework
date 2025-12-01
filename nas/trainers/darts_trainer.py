@@ -181,3 +181,40 @@ class DartsTrainer:
                 correct_k = correct[:k].reshape(-1).float().sum(0)
                 res.append((100.0 * correct_k / batch_size).item())
             return res
+
+    # -------------------------
+    # Loss & update steps
+    # -------------------------
+    def _train_step_weights(self, input, target):
+        """
+        Single update step for model weights W (uses training data)
+        """
+        self.model.train()
+        self.optimizer_w.zero_grad()
+        with torch.cuda.amp.autocast(enabled=self.use_amp):
+            logits = self.model(input)
+            loss = nn.CrossEntropyLoss()(logits, target)
+        self.scaler.scale(loss).backward()
+        if self.grad_clip is not None:
+            self.scaler.unscale_(self.optimizer_w)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+        self.scaler.step(self.optimizer_w)
+        self.scaler.update()
+        return loss.item()
+
+    def _train_step_alpha(self, input_valid, target_valid):
+        """
+        Single update step for architecture weights alpha (uses validation data)
+        Implements FIRST-ORDER approximation:
+        compute validation loss and take gradient w.r.t. alpha directly.
+        """
+        self.model.train()  # model must be in train to use alphas in forward
+        self.optimizer_alpha.zero_grad()
+        with torch.cuda.amp.autocast(enabled=self.use_amp):
+            logits = self.model(input_valid)
+            loss_alpha = nn.CrossEntropyLoss()(logits, target_valid)
+        # Backprop alpha (only alphas require grads if optimizer_alpha only handles alphas)
+        loss_alpha.backward()
+        # Optionally gradient clip for alphas (rarely needed)
+        self.optimizer_alpha.step()
+        return loss_alpha.item()
