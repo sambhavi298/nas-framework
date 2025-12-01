@@ -61,3 +61,32 @@ class DartsTrainer:
         # Model
         self.model = SuperNet(init_channels=init_channels, num_layers=num_layers, num_classes=num_classes)
         self.model.to(self.device)
+
+        # Optimizers: W (SGD) and alpha (Adam)
+        self.optimizer_w = SGD(self.model.parameters(), lr=lr_w, momentum=momentum, weight_decay=weight_decay)
+        # architecture params: only alphas
+        self.optimizer_alpha = Adam([self.model.alphas], lr=lr_alpha, betas=(0.5, 0.999), weight_decay=1e-3)
+
+        # LR scheduler for weights
+        self.scheduler = CosineAnnealingLR(self.optimizer_w, T_max=epochs)
+
+        # Mixed precision scaler
+        self.scaler = torch.cuda.amp.GradScaler(enabled=self.use_amp)
+
+        # Datasets / loaders (created later in setup_data)
+        self.train_loader = None
+        self.valid_loader = None
+
+        # Save config
+        self.config = dict(
+            init_channels=init_channels,
+            num_layers=num_layers,
+            num_classes=num_classes,
+            batch_size=batch_size,
+            lr_w=lr_w,
+            lr_alpha=lr_alpha,
+            epochs=epochs,
+            device=self.device,
+            use_amp=self.use_amp,
+            unrolled=self.unrolled,
+        )
