@@ -57,3 +57,7 @@ class DartsTrainer:
         self.save_every = save_every
         self.seed = seed
         self.unrolled = unrolled
+
+        # Model
+        self.model = SuperNet(init_channels=init_channels, num_layers=num_layers, num_classes=num_classes)
+        self.model.to(self.device)
