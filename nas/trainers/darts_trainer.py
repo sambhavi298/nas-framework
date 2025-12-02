@@ -133,8 +133,20 @@ class DartsTrainer:
         train_subset = Subset(full_train, indices[:train_size])
         val_subset = Subset(full_train_for_val, val_indices)
 
-        self.train_loader = DataLoader(train_subset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, pin_memory=True)
-        self.valid_loader = DataLoader(val_subset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, pin_memory=True)
+        self.train_loader = DataLoader(
+            train_subset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=0,          # IMPORTANT
+            pin_memory=False,
+        )
+        self.valid_loader = DataLoader(
+            val_subset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=0,          # IMPORTANT
+            pin_memory=False,
+        )
 
         logger.info(f"Data loaders ready. Train size: {len(train_subset)}, Val size: {len(val_subset)}")
 
