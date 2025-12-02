@@ -125,5 +125,5 @@ Upcoming module:
 
 ['conv_3x3', 'skip', 'conv_3x3', 'conv_3x3', 'conv_3x3', 'conv_3x3']
 
-Search completed in ~X hours on CPU.
+Search completed in ~11 hours on CPU.
 Peak validation accuracy during search: ~79.38%
