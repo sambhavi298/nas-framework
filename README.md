@@ -120,3 +120,10 @@ Upcoming module:
 
 ---
 
+
+## Final architecture discovered by NAS
+
+['conv_3x3', 'skip', 'conv_3x3', 'conv_3x3', 'conv_3x3', 'conv_3x3']
+
+Search completed in ~X hours on CPU.
+Peak validation accuracy during search: ~79.38%

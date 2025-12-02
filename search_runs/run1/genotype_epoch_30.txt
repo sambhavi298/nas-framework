@@ -1,5 +1,5 @@
 conv_3x3
-conv_3x3
+skip
 conv_3x3
 conv_3x3
 conv_3x3
