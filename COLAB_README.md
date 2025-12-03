@@ -26,5 +26,14 @@ Copy and paste the following code block into a code cell and run it:
 !python scripts/train_final.py
 ```
 
-### 3. Expected Output
-You should see the training progress for 20 epochs, followed by the final test accuracy.
+### 3. Run the Search (Optional)
+If you want to discover a new architecture instead of training the existing one:
+
+```python
+# Run the search script
+!python scripts/search.py
+```
+
+### 4. Expected Output
+- **Search**: Will run for 30 epochs and save genotypes to `search_runs/`.
+- **Train**: Will run for 100 epochs and print the final test accuracy.
