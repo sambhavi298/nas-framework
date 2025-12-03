@@ -127,3 +127,12 @@ Upcoming module:
 
 Search completed in ~11 hours on CPU.
 Peak validation accuracy during search: ~79.38%
+
+
+## Final Training Results
+
+- Train Accuracy: ~69%
+- Test Accuracy: ~67.45%
+- Training Time: ~45 minutes on CPU
+- Search Time: ~11 hours on CPU
+
