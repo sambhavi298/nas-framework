@@ -131,6 +131,7 @@ Peak validation accuracy during search: ~79.38%
 
 ## Final Training Results
 
+- **Train Accuracy: 93.68%**
 - **Test Accuracy: 92.00%** (Achieved on T4 GPU, 100 epochs)
 - Training Time: ~1 hour on T4 GPU
 
