@@ -17,7 +17,7 @@ class FinalCell(nn.Module):
 
 
 class FinalModel(nn.Module):
-    def __init__(self, genotype, init_channels=16, num_classes=10):
+    def __init__(self, genotype, init_channels=36, num_classes=10):
         super().__init__()
 
         self.genotype = genotype
@@ -41,6 +41,7 @@ class FinalModel(nn.Module):
         self.layers = nn.Sequential(*layers)
 
         self.gap = nn.AdaptiveAvgPool2d(1)
+        self.dropout = nn.Dropout(0.2)
         self.fc = nn.Linear(C_in, num_classes)
 
     def forward(self, x):
@@ -48,4 +49,5 @@ class FinalModel(nn.Module):
         x = self.layers(x)
         x = self.gap(x)
         x = x.view(x.size(0), -1)
+        x = self.dropout(x)
         return self.fc(x)

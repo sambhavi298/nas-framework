@@ -11,18 +11,24 @@ GENOTYPE = ['conv_3x3', 'skip', 'conv_3x3', 'conv_3x3', 'conv_3x3', 'conv_3x3']
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def get_loaders(batch_size=64):
-    transform = transforms.Compose([
-        transforms.RandomHorizontalFlip(),
+def get_loaders(batch_size=96):
+    transform_train = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
-    trainset = datasets.CIFAR10("./data", train=True, download=True, transform=transform)
-    testset = datasets.CIFAR10("./data", train=False, download=True, transform=transforms.ToTensor())
+    transform_test = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
 
-    train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+    trainset = datasets.CIFAR10("./data", train=True, download=True, transform=transform_train)
+    testset = datasets.CIFAR10("./data", train=False, download=True, transform=transform_test)
+
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     return train_loader, test_loader
 
@@ -32,12 +38,21 @@ def train_final():
 
     model = FinalModel(GENOTYPE).to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=3e-4)
+    
+    # Improved Optimizer: SGD with Momentum
+    optimizer = optim.SGD(model.parameters(), lr=0.025, momentum=0.9, weight_decay=3e-4)
+    
+    # Scheduler: Cosine Annealing
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
 
-    for epoch in range(20):
+    epochs = 100
+    best_acc = 0.0
+
+    for epoch in range(epochs):
         model.train()
         total = 0
         correct = 0
+        train_loss = 0.0
 
         for x, y in train_loader:
             x, y = x.to(device), y.to(device)
@@ -48,12 +63,14 @@ def train_final():
             loss.backward()
             optimizer.step()
 
+            train_loss += loss.item()
             _, predicted = pred.max(1)
             total += y.size(0)
             correct += predicted.eq(y).sum().item()
 
+        scheduler.step()
         train_acc = 100 * correct / total
-        print(f"Epoch {epoch+1}/20 :: Train Acc = {train_acc:.2f}%")
+        print(f"Epoch {epoch+1}/{epochs} :: Train Loss = {train_loss/len(train_loader):.4f} | Train Acc = {train_acc:.2f}%")
 
     # Final test accuracy
     model.eval()
@@ -67,7 +84,8 @@ def train_final():
             total += y.size(0)
             correct += predicted.eq(y).sum().item()
 
-    print(f"Final Test Accuracy = {100 * correct / total:.2f}%")
+    acc = 100 * correct / total
+    print(f"Final Test Accuracy = {acc:.2f}%")
 
     torch.save(model.state_dict(), "final_model.pth")
 
