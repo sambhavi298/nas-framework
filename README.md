@@ -125,8 +125,7 @@ Upcoming module:
 
 ['conv_3x3', 'skip', 'conv_3x3', 'conv_3x3', 'conv_3x3', 'conv_3x3']
 
-Search completed in ~11 hours on CPU.
-Peak validation accuracy during search: ~79.38%
+Search completed in ~11 hours on CPU. Discovered architecture achieves **92.00%** test accuracy.
 
 
 ## Final Training Results
